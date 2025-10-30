@@ -1,0 +1,44 @@
+serial_16: CFLAGS += -DSIZE=16
+serial_16: libhyburn
+	$(CC) -c $(SOURCE_DIR)/main.c -o $(OBJECT_DIR)/main.o $(CFLAGS) 
+	$(LD) $(OBJECT_DIR)/main.o -o $(OBJECT_DIR)/serial_16 $(LD_FLAGS) $(LD_LIBS)
+
+serial_150: CFLAGS += -DSIZE=150
+serial_150: libhyburn
+	$(CC) -c $(SOURCE_DIR)/main.c -o $(OBJECT_DIR)/main.o $(CFLAGS) 
+	$(LD) $(OBJECT_DIR)/main.o -o $(OBJECT_DIR)/serial_150 $(LD_FLAGS) $(LD_LIBS)
+
+serial_365: CFLAGS += -DSIZE=365
+serial_365: libhyburn
+	$(CC) -c $(SOURCE_DIR)/main.c -o $(OBJECT_DIR)/main.o $(CFLAGS) 
+	$(LD) $(OBJECT_DIR)/main.o -o $(OBJECT_DIR)/serial_365 $(LD_FLAGS) $(LD_LIBS)
+
+simd_16: CFLAGS += -DSIZE=16 -D__HYPERION_USE_SIMD
+simd_16: libhyburn_simd
+	$(CC) -c $(SOURCE_DIR)/main.c -o $(OBJECT_DIR)/main.o $(CFLAGS) 
+	$(LD) $(OBJECT_DIR)/main.o -o $(OBJECT_DIR)/simd_16 $(LD_FLAGS) $(LD_LIBS)
+	
+simd_150: CFLAGS += -DSIZE=150 -D__HYPERION_USE_SIMD
+simd_150: libhyburn_simd
+	$(CC) -c $(SOURCE_DIR)/main.c -o $(OBJECT_DIR)/main.o $(CFLAGS) 
+	$(LD) $(OBJECT_DIR)/main.o -o $(OBJECT_DIR)/simd_150 $(LD_FLAGS) $(LD_LIBS)
+	
+simd_365: CFLAGS += -DSIZE=365 -D__HYPERION_USE_SIMD
+simd_365: libhyburn_simd
+	$(CC) -c $(SOURCE_DIR)/main.c -o $(OBJECT_DIR)/main.o $(CFLAGS) 
+	$(LD) $(OBJECT_DIR)/main.o -o $(OBJECT_DIR)/simd_365 $(LD_FLAGS) $(LD_LIBS)
+	
+pec_16: CFLAGS += -DSIZE=16
+pec_16: libhyburn_pec
+	$(CC) -c $(SOURCE_DIR)/main.c -o $(OBJECT_DIR)/main.o $(CFLAGS) 
+	$(LD) $(OBJECT_DIR)/main.o -o $(OBJECT_DIR)/pec_16 $(LD_FLAGS) $(LD_LIBS)
+	
+pec_150: CFLAGS += -DSIZE=150
+pec_150: libhyburn_pec
+	$(CC) -c $(SOURCE_DIR)/main.c -o $(OBJECT_DIR)/main.o $(CFLAGS) 
+	$(LD) $(OBJECT_DIR)/main.o -o $(OBJECT_DIR)/pec_150 $(LD_FLAGS) $(LD_LIBS)
+	
+pec_365: CFLAGS += -DSIZE=365
+pec_365: libhyburn_pec
+	$(CC) -c $(SOURCE_DIR)/main.c -o $(OBJECT_DIR)/main.o $(CFLAGS) 
+	$(LD) $(OBJECT_DIR)/main.o -o $(OBJECT_DIR)/pec_365 $(LD_FLAGS) $(LD_LIBS)

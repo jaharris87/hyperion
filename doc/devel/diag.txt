@@ -1,0 +1,13 @@
+*diag.txt*                                                   (diagnostic system)
+
+                                 DIAGNOSTICS
+
+    Explanation of the HYPERION diagnostic system.
+
+================================================================================
+OUTLINE                                                                    *huh*
+
+
+
+================================================================================
+vim:tw=80:ft=help:norl:et:ts=2:sw=2:fen:fdl=0:

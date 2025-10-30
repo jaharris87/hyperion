@@ -1,0 +1,26 @@
+*hyperion.txt*                                (hyperion general documentation)
+
+                                  HYPERION
+
+Hyperion is a thermonuclear network solver for stellar-evolution models,
+designed to be implemented as a piece of a larger simulation model, such as:
+
+- Flash-X
+- Chimera
+- Einstein Toolkit
+
+
+==============================================================================
+CONTRIBUTORS
+
+NICHOLAS HOWARD
+- supervision / merge / development
+- email: nhowar14@vols.utk.edu
+
+==============================================================================
+ACKNOWLEDGEMENTS
+
+...
+
+==============================================================================
+vim:tw=80:ft=help:norl:et:ts=2:sw=2:fen:fdl=0:

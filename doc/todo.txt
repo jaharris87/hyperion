@@ -1,0 +1,16 @@
+*todo.txt*                                                           (TODO list)
+
+                              HYPERION - TODO
+
+    Primary TODO list for Hyperion development.
+
+================================================================================
+TODO                                                                      *todo*
+
+- Flesh out tests
+- Make setup.py controll _all_ aspects of setup, not just as a basic helper.
+- Refactor the data intake/init routines (this is complex and requires
+  discussion)
+
+================================================================================
+vim:tw=80:ft=help:norl:et:ts=2:sw=2:fen:fdl=0:

@@ -1,0 +1,38 @@
+*flash.txt*                                                (Flash Integration)
+
+                                    FLASH 
+
+    Flash-X is a multiphysics software Hyperion is designed to interface 
+    with. This file outlines that interface.
+
+
+==============================================================================
+INIT                                                           *init_*  *init*
+
+The primary initialization routine for Flash-X integration is in
+`src/core/init.c`.
+
+>
+  void init_(void);
+<
+
+There are a few parameters which must be specified at compile time: 
+- Network data file
+- Rate data file
+- Network size
+- Number of reactions
+
+Example for alpha network: >
+  #define NETWORK_FILE "data/network_alpha.txt"
+  #define NETWORK_SIZE 16 // Corresponds to NETWORK_FILE
+  
+  #define RATE_FILE "data/ratelibrary_alpha.txt"
+  #define NUM_REACTIONS 48 // Corresponds to RATE_FILE
+<
+
+It should be assumed standard that the user never interacts with these
+definitions, and as such they must be specified entirely by the build system.
+
+
+==============================================================================
+vim:tw=80:ft=help:norl:et:ts=2:sw=2:fen:fdl=0:

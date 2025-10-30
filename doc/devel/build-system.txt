@@ -1,0 +1,44 @@
+*build-system.txt*                                                  (build system)
+
+                                 BUILD SYSTEM
+
+    Documentation for the HYPERION build system.
+
+================================================================================
+MAKE                                                                      *make*
+
+GNU make is the build system for HYPERION. The variables and structure is
+documented here.
+
+CUSTOMIZATION
+
+Most customization of the build system will occur in the site-specific Makefile.
+A basic case is contained in `build/sites/Makefile.default`. Editing this file
+is not recommended. Instead, a copy of this file should be made, and the name of
+this copy (where your edits will be made) should be set as the `SITE` variable
+in the top-level Makefile.
+
+
+================================================================================
+MAKE VARIABLES                                                 *makevars* *vars*
+
+GNU make is the build system for HYPERION. The variables and structure is
+documented here.
+
+- `SITE` name of site-specific Makefile
+- `ROOTDIR` call root directory (pwd)
+- `OBJECT_DIR` compiled binary output directory
+- `SOURCE_DIR` source code directory
+- `CC` C compiler
+- `LD` linker
+- `CFLAGS` c compiler flags
+- `LD_FLAGS` linker flags
+- `LD_LIBS` library locations for linker
+
+
+================================================================================
+MAKE TARGETS                                                           *targets* 
+
+
+================================================================================
+vim:tw=80:ft=help:norl:et:ts=2:sw=2:fen:

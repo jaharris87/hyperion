@@ -1,0 +1,22 @@
+*setup.txt*                                                        (setup guide)
+
+                               BUILD / SETUP
+
+    BUILD & SETUP guide for HYPERION.
+
+================================================================================
+DEPENDENCIES                                                              *deps*
+
+- GCC toolchain
+- x86_64 for intrinsics (SIMD and otherwise, non intrinsic modes available)
+  
+
+================================================================================
+BUILDING    
+
+`setup.py` is the build assistant for HYPERION.
+
+  TODO...
+
+================================================================================
+vim:tw=80:ft=help:norl:et:ts=2:sw=2:fen:

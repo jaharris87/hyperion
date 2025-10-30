@@ -1,0 +1,46 @@
+*testing.txt*                                                        (testing)
+
+                                  TESTING
+
+    BUILD & SETUP guide for HYPERION.
+
+================================================================================
+TESTING PHILOSOPHY
+
+HYPERION uses two types of test: MAJOR and MINOR.
+
+MAJOR tests correspond to releases, whereas MINOR tests correspond to
+development.
+
+The expectation for HYPERION testing is dependent on the release:
+
+MAJOR AND MINOR RELEASES
+
+- ALL MAJOR AND MINOR TESTS MUST PASS
+
+Major releases should have adequate testing of new features. Removal of tests
+can only occur if the removed test is superceded by a reasonable replacement.
+Minor releases cannot remove existing tests for the corresponding major version
+under any circumstances.
+
+DEVELOPMENT
+
+- ALL MAJOR TESTS MUST PASS
+
+Any commit (on the master or primary development branches) must pass MAJOR
+tests. MINOR tests can be implemented, deleted, and manipulated freely in
+development. MINOR tests should be converted to MAJOR test before a major
+release.
+
+================================================================================
+BUILD TESTS                                                              *units*
+
+- TODO
+
+================================================================================
+UNIT TESTS                                                               *units*
+
+- TODO
+
+================================================================================
+vim:tw=80:ft=help:norl:et:ts=2:sw=2:fen:fdl=0:
