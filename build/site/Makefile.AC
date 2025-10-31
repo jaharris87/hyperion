@@ -6,11 +6,13 @@ PYTHON := python3
 # Optimization flags
 GCCOPTS := -O3 -fno-math-errno -ffinite-math-only -frounding-math
 CFLAGS := -std=c99 -Wall -Wextra --pedantic $(GCCOPTS)
-
+CFLAGS += -Isrc
 # SIMD options
 # NOTE: this must not be := defined, as it has to reeval CFLAGS for SIZE def
 CFLAGS_SIMD = $(CFLAGS) -mavx512f \
 							 -march=native -D__HYPERION_USE_SIND
+
+# User 
 # HDF5 custom include and link paths
 HDF5_INC = -I/usr/include/hdf5/serial
 HDF5_LIB = -L/usr/lib/x86_64-linux-gnu/hdf5/serial

@@ -2,6 +2,9 @@
 
 #include "store.h"
 
+#include "debug/tickertape.h"  //AC
+			
+
 // #define __DIAG_ON
 #include "diagnostic.h" // Bad header name... clashes with libc standards...?
 
@@ -24,6 +27,11 @@
 void hyperion_burner_(double* tstep, double* temp, double* dens, double* xin,
                       double* restrict xout, double* sdotrate,
                       uchar* burned_zone, int* size) {
+	
+	/***********/ //AC
+    		tickertape_log("Entered BURNER");
+	/***AC***/
+
 
     memcpy(xout, xin, *size * sizeof(double));
 
@@ -160,6 +168,8 @@ void hyperion_burner_(double* tstep, double* temp, double* dens, double* xin,
     }
 
     *sdotrate = ddt_e;
+
+    tickertape_close(); //AC
 
     return;
 }

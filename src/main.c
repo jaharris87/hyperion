@@ -12,6 +12,8 @@
 
 #include <x86intrin.h>
 
+#include "debug/tickertape.h" //AC
+
 // The choice for how long to warm up is complicated. It just needs to max the
 // thread's clock out. There's a lot that goes into this... but this is fine.
 // #define WARMUP 4096 * 10
@@ -31,8 +33,16 @@ void run_no_batch();
 void run_with_batch();
 
 int main() {
+    tickertape_init("/home/adam/hyperion/debug_log.txt");
+
+    tickertape_log("Tickertape initialized.");
+
+
     // run_no_batch(); // NOT COMPAT WITH SIMD
     run_with_batch();
+
+    tickertape_close();
+
     return EXIT_SUCCESS;
 }
 
@@ -56,6 +66,10 @@ void run_no_batch() {
     double tstep = 1e-06;
 
     hyperion_init_();
+
+    fprintf(pfile, "This is a test.\n"); //AC
+    fprintf(pfile, "Value of pi ≈ %.5f\n", 3.14159); //AC
+						     //
 
     memcpy(xin, x, size * sizeof(double));
 
