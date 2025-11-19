@@ -1,0 +1,25 @@
+
+Lmod is automatically replacing "cce/18.0.1" with "amd/6.2.4".
+
+
+Lmod is automatically replacing "PrgEnv-cray/8.6.0" with "PrgEnv-amd/8.6.0".
+
+
+Due to MODULEPATH changes, the following have been reloaded:
+  1) cray-libsci/24.11.0     3) darshan-runtime/3.4.6-mpi
+  2) cray-mpich/8.1.31       4) hdf5/1.14.5-mpi
+
+srun: error: frontier07042: task 0: Exited with exit code 2
+srun: Terminating StepId=3888908.0
+slurmstepd: error: execve(): /autofs/nccs-svm1_proj/ast218/hyperion/tests/HELLO_GPU/./hello_gpu: No such file or directory
+
+Lmod is automatically replacing "cce/18.0.1" with "amd/6.2.4".
+
+
+Lmod is automatically replacing "PrgEnv-cray/8.6.0" with "PrgEnv-amd/8.6.0".
+
+
+Due to MODULEPATH changes, the following have been reloaded:
+  1) cray-libsci/24.11.0     3) darshan-runtime/3.4.6-mpi
+  2) cray-mpich/8.1.31       4) hdf5/1.14.5-mpi
+

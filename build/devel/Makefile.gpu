@@ -1,21 +1,30 @@
+HIPCC = cc
+HIPLD = hipcc
+
+CFLAGS_C = --std=c99
+CFLAGS_HIP = --offload-arch=gfx90a --std=c++17
+
 gpu_test: CFLAGS += -DSIZE=16 # temporarily assume 16 size
 gpu_test: LD_FLAGS += $(LD_FLAGS_GPU)
 gpu_test: libhyburn_gpu
-	$(CC) -c $(SOURCE_DIR)/main_gpu.c -o $(OBJECT_DIR)/main.o $(CFLAGS) 
-	$(HIPLD) $(OBJECT_DIR)/main.o -o $(OBJECT_DIR)/gpu_test $(LD_FLAGS) $(LD_LIBS)
+	$(HIPCC) $(CFLAGS_C) -c $(SOURCE_DIR)/main_gpu.c -o $(OBJECT_DIR)/main.o $(CFLAGS) 
+	$(HIPLD) $(CFLAGS_C) $(OBJECT_DIR)/main.o -o $(OBJECT_DIR)/gpu_test $(LD_FLAGS) $(LD_LIBS)
 
 # NOTE: HIPCC insists on its own flags
-libhyburn_gpu: CFLAGS += $(CLAGS_GPU)
 libhyburn_gpu: libhyburn_base builddir
-	$(HIPCC) -c $(SOURCE_DIR)/gpu/hip.c -o $(OBJECT_DIR)/hip.o
+	# C file → use CFLAGS_C
+	$(HIPCC) $(CFLAGS_C) -c $(SOURCE_DIR)/gpu/hip.c -o $(OBJECT_DIR)/hip.o
 	ar rvs $(OBJECT_DIR)/libhyburn.a $(OBJECT_DIR)/hip.o
-	$(HIPCC) -c $(SOURCE_DIR)/gpu/hip_debug_kernel.hip -o \
+	# HIP kernel → use CFLAGS_HIP
+	$(HIPCC) $(CFLAGS_HIP) -c $(SOURCE_DIR)/gpu/hip_debug_kernel.hip -o \
 		$(OBJECT_DIR)/hip_debug_kernel.o
 	ar rvs $(OBJECT_DIR)/libhyburn.a $(OBJECT_DIR)/hip_debug_kernel.o
 	# TODO: brother you _need_ to figure out the build system here,
 	# we cannot keep hacking shit together like this. We're better than that.
-	$(HIPCC) -c $(SOURCE_DIR)/core/bn_burner_gpu.hip -o \
+	# HIP kernel → use CFLAGS_HIP
+	$(HIPCC) $(CFLAGS_HIP) -c $(SOURCE_DIR)/core/bn_burner_gpu.hip -o \
 		$(OBJECT_DIR)/bn_burner_gpu_kernel.o -DSIZE=16
 	ar rvs $(OBJECT_DIR)/libhyburn.a $(OBJECT_DIR)/bn_burner_gpu_kernel.o
-	$(HIPCC) -c $(SOURCE_DIR)/core/bn_burner_gpu.c -o $(OBJECT_DIR)/bn_burner_gpu.o
+	# C file → use CFLAGS_C
+	$(HIPCC) $(CFLAGS_C) -c $(SOURCE_DIR)/core/bn_burner_gpu.c -o $(OBJECT_DIR)/bn_burner_gpu.o
 	ar rvs $(OBJECT_DIR)/libhyburn.a $(OBJECT_DIR)/bn_burner_gpu.o
