@@ -1,4 +1,4 @@
-#include "core/bn_burner_gpu.h"
+#include "hipcore/bn_burner_gpu.h"
 #include "core/init.h"
 #include "core/kill.h"
 #include "core/store.h"

@@ -1,6 +1,6 @@
 #include "bn_burner_gpu.h"
 
-#include "store.h"
+#include "../core/store.h"
 
 #define __HIP_PLATFORM_AMD__
 #include <hip/hip_runtime.h>
