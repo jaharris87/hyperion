@@ -1,0 +1,9 @@
+spack:
+  specs:
+    - cmake@3.24:
+    - hip@5.6:
+    - eigen:
+    - hdf5
+    - gcc@12
+  view: true
+
