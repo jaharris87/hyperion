@@ -1,4 +1,3 @@
-#define __HIP_PLATFORM_AMD__
 #include <hip/hip_runtime.h>
 #include "../core/restrict.h"
 
@@ -54,12 +53,19 @@ enum KSR {
 
 typedef unsigned char uchar; // Boolean workaround for cython
 
-int device_init(int zones);
 void _killall_ptrs_hipdev();
+#ifdef __cplusplus
+extern "C" {
+#endif
 
+int device_init(int zones);
 void hyperion_burner_(double* tstep, double* temp, double* dens, double* xin,
                       double* xout, double* sdotrate, uchar* burned_zone,
                       int* size);
+
+#ifdef __cplusplus
+}
+#endif
 
 #ifdef __cplusplus
 extern "C" __global__ void hyperion_burner_dev_kernel(

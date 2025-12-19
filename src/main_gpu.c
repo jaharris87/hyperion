@@ -63,8 +63,6 @@ int run_batch(void) {
 
     int zones = BATCHCNT;
 
-    // "30" is just a guess at the number of args
-    args = malloc(30 * sizeof(void*));
     device_init(zones);
 
     // WARMUP

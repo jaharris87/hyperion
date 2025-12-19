@@ -4,8 +4,9 @@ if(USE_GPU STREQUAL "HIP")
   enable_language(HIP)
 
 	add_library(burner_gpu
-    	bn_burner_gpu.hip
+    	bn_burner_gpu.hip # HIP kernel
     	bn_burner_gpu.c   # wrapper / launcher
+	hip.c 
 	)
 
 	target_include_directories(burner_gpu
@@ -34,8 +35,4 @@ else()
   add_library(burner_gpu INTERFACE) # no GPU
   target_link_libraries(burner_gpu INTERFACE burner_cpu)
 endif()
-target_compile_definitions(hyperion_core
-    PUBLIC SIZE=${SIZE}
-)
-
 
