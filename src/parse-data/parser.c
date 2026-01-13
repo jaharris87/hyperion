@@ -60,8 +60,20 @@ void rate_library_create(char* filename, int size) {
 
     int n = -1;
     int subindex = -1;
+    #include <unistd.h>
+    #include <limits.h>
+
+    char cwd[PATH_MAX];
+    getcwd(cwd, sizeof(cwd));
+    fprintf(stderr, "CWD = %s\n", cwd);
+    fprintf(stderr, "Trying to open file = %s\n", filename);
+    fflush(stderr);
 
     FILE* file = fopen(filename, "r");
+    if (!file) {
+    	fprintf(stderr, "ERROR: failed to open %s\n", filename);
+    	abort();
+    }
 
     while (fgets(line, 120, file)) {
         subindex++;

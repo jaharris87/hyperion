@@ -5,6 +5,8 @@
 
 #define __HIP_PLATFORM_AMD__
 #include <hip/hip_runtime.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 // So that my LSP stops bugging me.
 #ifndef SIZE
@@ -32,16 +34,21 @@
 // #define NUM_FLUXES_MINUS 7420
 #endif
 
-burner_args_t args;
+// Global args structure for HIP device memory
+static burner_args_t args;
 
-// We can ONLY allocate these values because they are different per-cell.
+// Forward declaration of the kernel wrapper
 static void hyperion_burner_kernel(double* tstep, double* temp, double* dens,
                                    double* xin, double* xout, double* sdotrate,
                                    int zones);
-
+// -----------------------------------------------------------------------------
+// Entry point for Fortran-callable API
+// -----------------------------------------------------------------------------
 void hyperion_burner_(double* tstep, double* temp, double* dens, double* xin,
                       double* HYP_RESTRICT xout, double* sdotrate,
                       uchar* burned_zone, int* size) {
+    fprintf(stderr, "HYPERION_BURNER entered\n");
+    fflush(stderr);
 
     for (int i = 0; i < *size; i++) {
         hyperion_burner_kernel(tstep, &temp[i], &dens[i], xin + (SIZE * i),
@@ -49,264 +56,143 @@ void hyperion_burner_(double* tstep, double* temp, double* dens, double* xin,
     }
 }
 
+// -----------------------------------------------------------------------------
+// Allocate and initialize device memory for a batch of zones
+// -----------------------------------------------------------------------------
 int device_init(int zones) {
+    fprintf(stderr, "DEVICE_INIT entered (zones=%d)\n", zones);
+    fflush(stderr);
 
+    printf("[bn_burner_gpu] device_init called with zones=%d\n", zones);
     int error = 0;
 
-    // We can allocate AND set memory to these values because they are the same
-    // for all cells.
-    error += hipMalloc(&args.prefactor, num_reactions * sizeof(double));
-    error += hipMemcpy(args.prefactor, prefactor,
-                       num_reactions * sizeof(double), hipMemcpyHostToDevice);
+    // Allocate per-network arrays once (shared across zones)
+    #define HIP_ALLOC_COPY(dest, src, n) \
+        do { \
+            error += hipMalloc(&(dest), (n) * sizeof(*(src))); \
+            error += hipMemcpy(dest, src, (n) * sizeof(*(src)), hipMemcpyHostToDevice); \
+        } while(0)
 
-    error += hipMalloc(&args.p_0, num_reactions * sizeof(double));
-    error += hipMemcpy(args.p_0, p_0, num_reactions * sizeof(double),
-                       hipMemcpyHostToDevice);
+    HIP_ALLOC_COPY(args.prefactor, prefactor, num_reactions);
+    HIP_ALLOC_COPY(args.p_0, p_0, num_reactions);
+    HIP_ALLOC_COPY(args.p_1, p_1, num_reactions);
+    HIP_ALLOC_COPY(args.p_2, p_2, num_reactions);
+    HIP_ALLOC_COPY(args.p_3, p_3, num_reactions);
+    HIP_ALLOC_COPY(args.p_4, p_4, num_reactions);
+    HIP_ALLOC_COPY(args.p_5, p_5, num_reactions);
+    HIP_ALLOC_COPY(args.p_6, p_6, num_reactions);
+    HIP_ALLOC_COPY(args.aa, aa, num_species);
+    HIP_ALLOC_COPY(args.q_value, q_value, num_reactions);
+    HIP_ALLOC_COPY(args.reactant_1, reactant_1, num_reactions);
+    HIP_ALLOC_COPY(args.reactant_2, reactant_2, num_reactions);
+    HIP_ALLOC_COPY(args.reactant_3, reactant_3, num_reactions);
+    HIP_ALLOC_COPY(args.f_plus_map, f_plus_map, f_plus_total);
+    HIP_ALLOC_COPY(args.f_minus_map, f_minus_map, f_minus_total);
+    HIP_ALLOC_COPY(args.f_plus_factor, f_plus_factor, f_plus_total);
+    HIP_ALLOC_COPY(args.f_minus_factor, f_minus_factor, f_minus_total);
+    HIP_ALLOC_COPY(args.f_plus_max, f_plus_max, num_species);
+    HIP_ALLOC_COPY(args.f_minus_max, f_minus_max, num_species);
+    HIP_ALLOC_COPY(args.num_react_species, num_react_species, num_reactions);
 
-    error += hipMalloc(&args.p_1, num_reactions * sizeof(double));
-    error += hipMemcpy(args.p_1, p_1, num_reactions * sizeof(double),
-                       hipMemcpyHostToDevice);
-
-    error += hipMalloc(&args.p_2, num_reactions * sizeof(double));
-    error += hipMemcpy(args.p_2, p_2, num_reactions * sizeof(double),
-                       hipMemcpyHostToDevice);
-
-    error += hipMalloc(&args.p_3, num_reactions * sizeof(double));
-    error += hipMemcpy(args.p_3, p_3, num_reactions * sizeof(double),
-                       hipMemcpyHostToDevice);
-
-    error += hipMalloc(&args.p_4, num_reactions * sizeof(double));
-    error += hipMemcpy(args.p_4, p_4, num_reactions * sizeof(double),
-                       hipMemcpyHostToDevice);
-
-    error += hipMalloc(&args.p_5, num_reactions * sizeof(double));
-    error += hipMemcpy(args.p_5, p_5, num_reactions * sizeof(double),
-                       hipMemcpyHostToDevice);
-
-    error += hipMalloc(&args.p_6, num_reactions * sizeof(double));
-    error += hipMemcpy(args.p_6, p_6, num_reactions * sizeof(double),
-                       hipMemcpyHostToDevice);
-
-    error += hipMalloc(&args.aa, num_species * sizeof(double));
-    error += hipMemcpy(args.aa, aa, num_species * sizeof(double),
-                       hipMemcpyHostToDevice);
-
-    error += hipMalloc(&args.q_value, num_reactions * sizeof(double));
-    error += hipMemcpy(args.q_value, q_value, num_reactions * sizeof(double),
-                       hipMemcpyHostToDevice);
-
-    error += hipMalloc(&args.reactant_1, num_reactions * sizeof(int));
-    error += hipMemcpy(args.reactant_1, reactant_1,
-                       num_reactions * sizeof(int), hipMemcpyHostToDevice);
-
-    error += hipMalloc(&args.reactant_2, num_reactions * sizeof(int));
-    error += hipMemcpy(args.reactant_2, reactant_2,
-                       num_reactions * sizeof(int), hipMemcpyHostToDevice);
-
-    error += hipMalloc(&args.reactant_3, num_reactions * sizeof(int));
-    error += hipMemcpy(args.reactant_3, reactant_3,
-                       num_reactions * sizeof(int), hipMemcpyHostToDevice);
-
-    error += hipMalloc(&args.f_plus_map, f_plus_total * sizeof(int));
-    error += hipMemcpy(args.f_plus_map, f_plus_map, f_plus_total * sizeof(int),
-                       hipMemcpyHostToDevice);
-
-    error += hipMalloc(&args.f_minus_map, f_minus_total * sizeof(int));
-    error += hipMemcpy(args.f_minus_map, f_minus_map,
-                       f_minus_total * sizeof(int), hipMemcpyHostToDevice);
-
-    error += hipMalloc(&args.f_plus_factor, f_plus_total * sizeof(double));
-    error += hipMemcpy(args.f_plus_factor, f_plus_factor,
-                       f_plus_total * sizeof(double), hipMemcpyHostToDevice);
-
-    error += hipMalloc(&args.f_minus_factor, f_minus_total * sizeof(double));
-    error += hipMemcpy(args.f_minus_factor, f_minus_factor,
-                       f_minus_total * sizeof(double), hipMemcpyHostToDevice);
-
-    error += hipMalloc(&args.f_plus_max, num_species * sizeof(int));
-    error += hipMemcpy(args.f_plus_max, f_plus_max, num_species * sizeof(int),
-                       hipMemcpyHostToDevice);
-
-    error += hipMalloc(&args.f_minus_max, num_species * sizeof(int));
-    error += hipMemcpy(args.f_minus_max, f_minus_max,
-                       num_species * sizeof(int), hipMemcpyHostToDevice);
-
-    error += hipMalloc(&args.num_react_species, num_reactions * sizeof(int));
-    error += hipMemcpy(args.num_react_species, num_react_species,
-                       num_reactions * sizeof(int), hipMemcpyHostToDevice);
-
+    // Allocate per-zone arrays
     error += hipMalloc(&args.burned_zone, 8);
     error += hipMalloc(&args.temp, zones * sizeof(double));
     error += hipMalloc(&args.dens, zones * sizeof(double));
     error += hipMalloc(&args.xin, zones * num_species * sizeof(double));
     error += hipMalloc(&args.xout, zones * num_species * sizeof(double));
     error += hipMalloc(&args.sdotrate, zones * sizeof(double));
+    error += hipMalloc(&args.int_vals, zones * sizeof(int));
+    error += hipMalloc(&args.real_vals, zones * sizeof(double));
 
-    hipMalloc(&args.p_0, NUM_REACTIONS * sizeof(double));
-    hipMalloc(&args.p_1, NUM_REACTIONS * sizeof(double));
-    hipMalloc(&args.p_2, NUM_REACTIONS * sizeof(double));
-    hipMalloc(&args.p_3, NUM_REACTIONS * sizeof(double));
-    hipMalloc(&args.p_4, NUM_REACTIONS * sizeof(double));
-    hipMalloc(&args.p_5, NUM_REACTIONS * sizeof(double));
-    hipMalloc(&args.p_6, NUM_REACTIONS * sizeof(double));
-
-    // "1" is how many vals there are
-    error += hipMalloc(&args.int_vals, zones * 1 * sizeof(int));
-    error += hipMalloc(&args.real_vals, zones * 1 * sizeof(double));
+    #undef HIP_ALLOC_COPY
 
     if (error > 0) {
+        fprintf(stderr, "[bn_burner_gpu] device_init: HIP malloc/copy failed!\n");
         return EXIT_FAILURE;
     }
 
+    printf("[bn_burner_gpu] device_init completed successfully.\n");
     return EXIT_SUCCESS;
 }
 
+// -----------------------------------------------------------------------------
+// Kernel wrapper: copies per-zone data to device, launches kernel, copies back
+// -----------------------------------------------------------------------------
 static void hyperion_burner_kernel(double* tstep, double* temp, double* dens,
                                    double* xin, double* xout, double* sdotrate,
                                    int zones) {
-    int error;
-    burner_args_t args = {0};
+    fprintf(stderr, "KERNEL WRAPPER entered\n");
+    fflush(stderr);
+    // Debug prints
+    printf("[bn_burner_gpu] hyperion_burner_kernel: zones=%d\n", zones);
 
-    // hipMemcpy(args[BURNED_ZONE], 8);
+    // Copy per-zone arrays to device
     hipMemcpy(args.temp, temp, zones * sizeof(double), hipMemcpyHostToDevice);
     hipMemcpy(args.dens, dens, zones * sizeof(double), hipMemcpyHostToDevice);
-    hipMemcpy(args.xin, xin, zones * num_species * sizeof(double),
-              hipMemcpyHostToDevice);
-    hipMemcpy(args.xout, xout, zones * num_species * sizeof(double),
-              hipMemcpyHostToDevice);
-    hipMemcpy(args.sdotrate, sdotrate, zones * sizeof(double),
-              hipMemcpyHostToDevice);
+    hipMemcpy(args.xin, xin, zones * num_species * sizeof(double), hipMemcpyHostToDevice);
+    hipMemcpy(args.xout, xout, zones * num_species * sizeof(double), hipMemcpyHostToDevice);
+    hipMemcpy(args.sdotrate, sdotrate, zones * sizeof(double), hipMemcpyHostToDevice);
 
-    hipMemcpy(args.p_0, p_0, NUM_REACTIONS * sizeof(double), hipMemcpyHostToDevice);
-    hipMemcpy(args.p_1, p_1, NUM_REACTIONS * sizeof(double), hipMemcpyHostToDevice);
-    hipMemcpy(args.p_2, p_2, NUM_REACTIONS * sizeof(double), hipMemcpyHostToDevice);
-    hipMemcpy(args.p_3, p_3, NUM_REACTIONS * sizeof(double), hipMemcpyHostToDevice);
-    hipMemcpy(args.p_4, p_4, NUM_REACTIONS * sizeof(double), hipMemcpyHostToDevice);
-    hipMemcpy(args.p_5, p_5, NUM_REACTIONS * sizeof(double), hipMemcpyHostToDevice);
-    hipMemcpy(args.p_6, p_6, NUM_REACTIONS * sizeof(double), hipMemcpyHostToDevice);
-
-    // "1" is how many vals there are
-    hipMemcpy(args.real_vals, tstep, zones * 1 * sizeof(double),
-              hipMemcpyHostToDevice);
-    // hipMemcpy(args[INT_VALS], NULL, zones * 1 * sizeof(int),
-    //           hipMemcpyHostToDevice);
-
-    struct dim3 blockdim = {256, 1, 1}; // Number of threads
-    struct dim3 griddim = {1, 1, 1};    // Number of blocks
-    // TODO: this is finding the total memory used by `__shared__` memory in the
-    // kernel, but that is less than obvious and should be made more clear.
+    // Kernel launch parameters
+    struct dim3 blockdim = {256, 1, 1};
+    struct dim3 griddim = {1, 1, 1};
     size_t sharedmem_allocation =
-        sizeof(double) * (num_reactions + num_reactions +
-                      f_plus_total + f_minus_total +
-                      num_species + num_species);
+        sizeof(double) * (num_reactions + num_reactions + f_plus_total + f_minus_total + num_species + num_species);
 
-    //args.temp = temp;
-    //args.dens = dens;
-    //args.xin  = xin;
-    //args.xout = xout;
-    //args.sdotrate = sdotrate;
-
-    args.prefactor = prefactor;
-    //args.p_0 = p_0;
-    //args.p_1 = p_1;
-    //args.p_2 = p_2;
-    //args.p_3 = p_3;
-    //args.p_4 = p_4;
-    //args.p_5 = p_5;
-    //args.p_6 = p_6;
-    args.aa = aa;
-    args.q_value = q_value;
-
-    args.reactant_1 = reactant_1;
-    args.reactant_2 = reactant_2;
-    args.reactant_3 = reactant_3;
-
-    args.f_plus_map = f_plus_map;
-
-    args.f_minus_map = f_minus_map;
-    args.f_plus_factor = f_plus_factor;
-    args.f_minus_factor = f_minus_factor;
-
-    args.f_plus_max = f_plus_max;
-    args.f_minus_max = f_minus_max;
-
-    args.num_react_species = num_react_species;
-
-    //args.real_vals = real_vals;
-
+    printf("[bn_burner_gpu] Launching kernel...\n");
     hyperion_burner_dev_kernel<<<griddim, blockdim, sharedmem_allocation>>>(
-        args.temp,
-        args.dens,
-        args.xin,
-        args.xout,
-        args.sdotrate,
-        args.prefactor,
-	args.p_0,
-	args.p_1,
-	args.p_2,
-	args.p_3,
-	args.p_4,
-	args.p_5,
-	args.p_6,
-    	args.aa,
-    	args.q_value,
-	args.reactant_1,
-    	args.reactant_2,
-    	args.reactant_3,
-    	args.f_plus_map,
-    	args.f_minus_map,
-    	args.f_plus_factor,
-    	args.f_minus_factor,
-    	args.f_plus_max,
-    	args.f_minus_max,
-    	args.num_react_species,
-    	args.real_vals
+        args.temp, args.dens, args.xin, args.xout, args.sdotrate,
+        args.prefactor, args.p_0, args.p_1, args.p_2, args.p_3,
+        args.p_4, args.p_5, args.p_6, args.aa, args.q_value,
+        args.reactant_1, args.reactant_2, args.reactant_3,
+        args.f_plus_map, args.f_minus_map, args.f_plus_factor,
+        args.f_minus_factor, args.f_plus_max, args.f_minus_max,
+        args.num_react_species, args.real_vals
     );
 
-    //printf("%i: %s\n", error, hipGetErrorString(error));
-    //printf("%s\n", hipGetErrorName(error));
+    // Copy results back to host
+    hipMemcpy(xout, args.xout, zones * num_species * sizeof(double), hipMemcpyDeviceToHost);
+    hipMemcpy(sdotrate, args.sdotrate, zones * sizeof(double), hipMemcpyDeviceToHost);
 
-
-    hipMemcpy(xout, args.xout, zones * num_species * sizeof(double),
-              hipMemcpyDeviceToHost);
-    hipMemcpy(sdotrate, args.sdotrate, zones * sizeof(double),
-              hipMemcpyDeviceToHost);
-
-    return;
+    printf("[bn_burner_gpu] Kernel execution completed.\n");
 }
 
+// -----------------------------------------------------------------------------
+// Free all allocated device memory
+// -----------------------------------------------------------------------------
 void hip_killall_device_ptrs() {
-    int error = 0;
-    error += hipFree(args.temp);
-    error += hipFree(args.dens);
-    error += hipFree(args.xin);
-    error += hipFree(args.xout);
-    error += hipFree(args.sdotrate);
-    error += hipFree(args.burned_zone);
-    error += hipFree(args.prefactor);
-    error += hipFree(args.p_0);
-    error += hipFree(args.p_1);
-    error += hipFree(args.p_2);
-    error += hipFree(args.p_3);
-    error += hipFree(args.p_4);
-    error += hipFree(args.p_5);
-    error += hipFree(args.p_6);
-    error += hipFree(args.aa);
-    error += hipFree(args.q_value);
-    error += hipFree(args.reactant_1);
-    error += hipFree(args.reactant_2);
-    error += hipFree(args.reactant_3);
-    error += hipFree(args.f_plus_map);
-    error += hipFree(args.f_minus_map);
-    error += hipFree(args.f_plus_factor);
-    error += hipFree(args.f_minus_factor);
-    error += hipFree(args.f_plus_max);
-    error += hipFree(args.f_minus_max);
-    error += hipFree(args.num_react_species);
-    error += hipFree(args.int_vals);
-    error += hipFree(args.real_vals);
-    //printf("%i: %s\n", error, hipGetErrorString(error));
-    //printf("%s\n", hipGetErrorName(error));
+    #define HIP_FREE(ptr) if(ptr){ hipFree(ptr); ptr = NULL; }
 
-    return;
+    HIP_FREE(args.temp)
+    HIP_FREE(args.dens)
+    HIP_FREE(args.xin)
+    HIP_FREE(args.xout)
+    HIP_FREE(args.sdotrate)
+    HIP_FREE(args.burned_zone)
+    HIP_FREE(args.prefactor)
+    HIP_FREE(args.p_0)
+    HIP_FREE(args.p_1)
+    HIP_FREE(args.p_2)
+    HIP_FREE(args.p_3)
+    HIP_FREE(args.p_4)
+    HIP_FREE(args.p_5)
+    HIP_FREE(args.p_6)
+    HIP_FREE(args.aa)
+    HIP_FREE(args.q_value)
+    HIP_FREE(args.reactant_1)
+    HIP_FREE(args.reactant_2)
+    HIP_FREE(args.reactant_3)
+    HIP_FREE(args.f_plus_map)
+    HIP_FREE(args.f_minus_map)
+    HIP_FREE(args.f_plus_factor)
+    HIP_FREE(args.f_minus_factor)
+    HIP_FREE(args.f_plus_max)
+    HIP_FREE(args.f_minus_max)
+    HIP_FREE(args.num_react_species)
+    HIP_FREE(args.int_vals)
+    HIP_FREE(args.real_vals)
+
+    #undef HIP_FREE
+
+    printf("[bn_burner_gpu] All device pointers freed.\n");
 }

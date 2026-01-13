@@ -1,14 +1,16 @@
 #include "gpu_backend.h"
+#include <stdio.h>
 
 #if defined(ENABLE_GPU)
 
-/* select backend */
+/* ================= HIP BACKEND ================= */
+
 #if defined(USE_HIP)
 
-#include "hipcore/hip.h"
 #include "hipcore/bn_burner_gpu.h"
+#include "hipcore/hip_backend.h"
 
-int device_init(int zones);
+/* Fortran interface */
 void hyperion_burner_(double* tstep,
                       double* temp,
                       double* dens,
@@ -16,75 +18,67 @@ void hyperion_burner_(double* tstep,
                       double* xout,
                       double* sdotrate,
                       unsigned char* burned_zone,
-                      int* size);
+                      int* zones);
 
 int gpu_backend_init(int zones)
 {
+    fprintf(stderr, "GPU_BACKEND_INIT (HIP) entered\n");
+    fflush(stderr);
+
     return hip_backend_init(zones);
 }
 
 int gpu_backend_finalize(void)
 {
-#if defined(USE_HIP)
     return hip_backend_finalize();
-#elif defined(USE_CUDA)
-    return cuda_backend_finalize();
-#else
-    return 0;
-#endif
 }
 
-void gpu_burner(
-    double* tstep,
-    double* temp,
-    double* dens,
-    double* xin,
-    double* xout,
-    double* sdotrate,
-    unsigned char*  burned_zone,
-    int*    zones
-) {
-    hyperion_burner_(
-        tstep, temp, dens, xin, xout,
-        sdotrate, burned_zone, zones
-    );
+void gpu_burner(double* tstep,
+                double* temp,
+                double* dens,
+                double* xin,
+                double* xout,
+                double* sdotrate,
+                unsigned char* burned_zone,
+                int* zones)
+{
+    hyperion_burner_(tstep, temp, dens, xin, xout,
+                     sdotrate, burned_zone, zones);
 }
 
-#elif defined(USE_CUDA)
-
-/* Placeholder for CUDA */
-#error "CUDA backend not implemented yet"
-
 #else
-#error "ENABLE_GPU set but no backend selected"
-#endif
+#error "ENABLE_GPU defined but USE_HIP is not set"
+#endif  /* USE_HIP */
 
-#else  /* CPU fallback */
+#else  /* ================= CPU FALLBACK ================= */
 
 #include "burner_cpu.h"
 
-int gpu_backend_init(int zones) {
+int gpu_backend_init(int zones)
+{
     (void)zones;
+    fprintf(stderr, "GPU backend disabled, using CPU\n");
+    fflush(stderr);
     return 0;
 }
 
-void gpu_backend_finalize(void) {}
-
-void gpu_burner(
-    double* tstep,
-    double* temp,
-    double* dens,
-    double* xin,
-    double* xout,
-    double* sdotrate,
-    unsigned char*  burned_zone,
-    int*    size
-) {
-    hyperion_burner_cpu(
-        tstep, temp, dens, xin, xout,
-        sdotrate, burned_zone, size
-    );
+int gpu_backend_finalize(void)
+{
+    return 0;
 }
 
-#endif
+void gpu_burner(double* tstep,
+                double* temp,
+                double* dens,
+                double* xin,
+                double* xout,
+                double* sdotrate,
+                unsigned char* burned_zone,
+                int* zones)
+{
+    hyperion_burner_cpu(tstep, temp, dens, xin, xout,
+                        sdotrate, burned_zone, zones);
+}
+
+#endif /* ENABLE_GPU */
 

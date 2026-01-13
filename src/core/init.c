@@ -1,6 +1,14 @@
+#include "paths.h"
+#include <limits.h>
+#include <stdio.h>
 #include "init.h"
-
 #include "store.h"
+#include "../parse-data/parser.h"
+
+
+/* stringify helper */
+#define STR_HELPER(x) #x
+#define STR(x) STR_HELPER(x)
 
 #if SIZE == 16
 #define NETWORK_SIZE 16
@@ -23,12 +31,23 @@
 #define RATE_FILE "data/ratelibrary-365.txt"
 #endif // __SIZE_365
 
-#include "../parse-data/parser.h"
-
 void hyperion_init_() {
-    
-    rate_library_create(RATE_FILE, NUM_REACTIONS);
-    network_create(NETWORK_FILE, NETWORK_SIZE);
+    char rate_path[PATH_MAX];
+    char network_path[PATH_MAX];
+
+    snprintf(rate_path, sizeof(rate_path),
+             "%s/%s", hyperion_data_dir, RATE_FILE);
+
+    snprintf(network_path, sizeof(network_path),
+             "%s/%s", hyperion_data_dir, NETWORK_FILE);
+
+    fprintf(stderr, "INIT: rate_library_create(%s)\n", rate_path);
+    fprintf(stderr, "INIT: network_create(%s)\n", network_path);
+    fflush(stderr);
+
+    rate_library_create(rate_path, NUM_REACTIONS);
+    network_create(network_path, NETWORK_SIZE);
+
     data_init();
 
     return;

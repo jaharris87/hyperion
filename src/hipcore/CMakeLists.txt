@@ -7,7 +7,6 @@ set_source_files_properties(
 add_library(burner_gpu STATIC
     bn_burner_gpu.hip # HIP kernel
     bn_burner_gpu.c   # wrapper / launcher
-    hip.c
     hip_debug_kernel.hip # <--- kernel definitions
     hip_wrapper.cpp
     hip_backend.c   # <-- holds kill command
