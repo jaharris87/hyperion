@@ -3,7 +3,7 @@
 #include <hip/hip_runtime.h>
 #include <stdio.h>
 
-static int select_best_device(void);
+int select_best_device(void);
 
 int hip_backend_init(int zones)
 {
@@ -34,7 +34,7 @@ int hip_backend_finalize(void)
     return 0; 
 }
 
-static int select_best_device(void)
+int select_best_device(void)
 {
     int num_devices = 0;
     hipError_t err = hipGetDeviceCount(&num_devices);

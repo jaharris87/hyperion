@@ -9,7 +9,7 @@
  *  - prepare runtime
  */
 int hip_backend_init(int zones);
-
+int select_best_device(void);   
 /* Finalize HIP backend:
  *  - free all device allocations
  *  - reset backend state

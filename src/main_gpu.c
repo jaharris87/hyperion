@@ -85,6 +85,7 @@ int run_batch(void) {
     printf("Initial conditions copied.\n");
 
     int zones = BATCHCNT;
+    //NEED to INITIALIZE DEVICE HERE
     
     // WARMUP
     printf("Launching GPU burner kernel (warmup)...\n");

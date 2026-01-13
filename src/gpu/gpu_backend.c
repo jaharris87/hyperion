@@ -1,4 +1,5 @@
 #include "gpu_backend.h"
+#include "./hipcore/hip_backend.h"	// declares hip_backend_init, device_init, select_best_device
 #include <stdio.h>
 
 #if defined(ENABLE_GPU)
@@ -24,8 +25,26 @@ int gpu_backend_init(int zones)
 {
     fprintf(stderr, "GPU_BACKEND_INIT (HIP) entered\n");
     fflush(stderr);
+    // Select device
+    int dev = select_best_device();
+    if (dev < 0) {
+        fprintf(stderr, "No HIP devices found!\n");
+        return EXIT_FAILURE;
+    }
+    hipError_t err = hipSetDevice(dev);
+    if (err != hipSuccess) {
+        fprintf(stderr, "hipSetDevice failed: %s\n", hipGetErrorString(err));
+        return EXIT_FAILURE;
+    }
+    printf("Selected HIP device %d\n", dev);
 
-    return hip_backend_init(zones);
+    // Initialize device memory for this batch of zones
+    if (device_init(zones) == EXIT_FAILURE) {
+        fprintf(stderr, "Device initialization failed!\n");
+        return EXIT_FAILURE;
+    }
+
+    return EXIT_SUCCESS;
 }
 
 int gpu_backend_finalize(void)
