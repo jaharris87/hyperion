@@ -132,6 +132,13 @@ static void hyperion_burner_kernel(double* tstep, double* temp, double* dens,
     hipMemcpy(args.xin, xin, zones * num_species * sizeof(double), hipMemcpyHostToDevice);
     hipMemcpy(args.xout, xout, zones * num_species * sizeof(double), hipMemcpyHostToDevice);
     hipMemcpy(args.sdotrate, sdotrate, zones * sizeof(double), hipMemcpyHostToDevice);
+    // real_vals only contains scalar controls (not per-zone)
+    hipMemcpy(
+        args.real_vals,
+        tstep,                 // host pointer
+        sizeof(double),        // only one value
+        hipMemcpyHostToDevice
+    );
 
     // Kernel launch parameters
     struct dim3 blockdim = {256, 1, 1};

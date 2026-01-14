@@ -85,6 +85,7 @@ extern "C" __global__ void hyperion_burner_dev_kernel(
                              t4 * p_4[i] + t5 * p_5[i] + t6 * p_6[i]);
     }
 
+
     double t = 1e-20;
     double dt = t * 1e-2;
 
@@ -139,8 +140,7 @@ extern "C" __global__ void hyperion_burner_dev_kernel(
                 f_minus_sum[i] += f_minus[j];
             }
         }
-
-        __syncthreads();
+	
 
         // for (int i = 0; i < SIZE; i++) {
         if (i < SIZE) {
