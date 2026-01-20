@@ -41,6 +41,9 @@ static burner_args_t args;
 static void hyperion_burner_kernel(double* tstep, double* temp, double* dens,
                                    double* xin, double* xout, double* sdotrate,
                                    int zones);
+double* d_rate = nullptr;
+double* d_flux = nullptr;
+
 // -----------------------------------------------------------------------------
 // Entry point for Fortran-callable API
 // -----------------------------------------------------------------------------
@@ -104,6 +107,12 @@ int device_init(int zones) {
     error += hipMalloc(&args.int_vals, zones * sizeof(int));
     error += hipMalloc(&args.real_vals, zones * sizeof(double));
 
+    hipMalloc(&d_rate, zones * NUM_REACTIONS * sizeof(double));
+    hipMalloc(&d_flux, zones * NUM_REACTIONS * sizeof(double));
+
+    hipMemset(d_rate, 0, zones * NUM_REACTIONS * sizeof(double));
+    hipMemset(d_flux, 0, zones * NUM_REACTIONS * sizeof(double));
+
     #undef HIP_ALLOC_COPY
 
     if (error > 0) {
@@ -141,8 +150,8 @@ static void hyperion_burner_kernel(double* tstep, double* temp, double* dens,
     );
 
     // Kernel launch parameters
-    struct dim3 blockdim = {256, 1, 1};
-    struct dim3 griddim = {1, 1, 1};
+    dim3 blockdim(256, 1, 1);
+    dim3 griddim(zones, 1, 1);
     size_t sharedmem_allocation =
         sizeof(double) * (num_reactions + num_reactions + f_plus_total + f_minus_total + num_species + num_species);
 
@@ -154,7 +163,7 @@ static void hyperion_burner_kernel(double* tstep, double* temp, double* dens,
         args.reactant_1, args.reactant_2, args.reactant_3,
         args.f_plus_map, args.f_minus_map, args.f_plus_factor,
         args.f_minus_factor, args.f_plus_max, args.f_minus_max,
-        args.num_react_species, args.real_vals
+        args.num_react_species, args.real_vals, d_rate, d_flux
     );
 
     // Copy results back to host
