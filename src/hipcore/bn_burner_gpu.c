@@ -153,7 +153,7 @@ static void hyperion_burner_kernel(double* tstep, double* temp, double* dens,
     dim3 blockdim(256, 1, 1);
     dim3 griddim(zones, 1, 1);
     size_t sharedmem_allocation =
-        sizeof(double) * (num_reactions + num_reactions + f_plus_total + f_minus_total + num_species + num_species);
+	sizeof(double) * (2 * SIZE); 
 
     printf("[bn_burner_gpu] Launching kernel...\n");
     hyperion_burner_dev_kernel<<<griddim, blockdim, sharedmem_allocation>>>(

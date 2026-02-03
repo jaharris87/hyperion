@@ -41,6 +41,8 @@ extern "C" __global__ void hyperion_burner_dev_kernel(
     double* rate = rate_g + zone * NUM_REACTIONS;
     double* flux = flux_g + zone * NUM_REACTIONS;
 
+    double tstep = real_vals[KSR_TSTEP];
+
     double T   = temp[zone];
     double rho = dens[zone];
 
@@ -61,6 +63,8 @@ extern "C" __global__ void hyperion_burner_dev_kernel(
 
     __shared__ double reduce_buf[256]; 
 
+    __shared__ double t;
+    __shared__ double dt;
 
 
     // ------------------------------------------------------------
@@ -110,9 +114,6 @@ extern "C" __global__ void hyperion_burner_dev_kernel(
     // ------------------------------------------------------------
     // Time integration
     // ------------------------------------------------------------
-    double t     = 1e-20;
-    double dt    = t * 1e-2;
-    double tstep = real_vals[KSR_TSTEP];
 
     while (t < tstep) {
 
@@ -145,7 +146,7 @@ extern "C" __global__ void hyperion_burner_dev_kernel(
 		minus += f_minus_factor[j] * flux[f_minus_map[j]];
 
 
-            if (minus * dt > xout[i]) {
+            if (minus * dt > xout_zone[i]) {
 		// Asympotic estimate.
                 xout_zone[i] =
                     (xout_zone[i] + plus * dt) /
@@ -157,9 +158,9 @@ extern "C" __global__ void hyperion_burner_dev_kernel(
         }
 
         __syncthreads();
-        if (tid == 0) {
-            t += dt;
-            dt = 1e-4 * t;
+	if (tid == 0) {
+	    t  = 1e-20;
+	    dt = t * 1e-2;
 	}
 	__syncthreads();
     }
