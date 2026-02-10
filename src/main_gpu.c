@@ -76,6 +76,10 @@ int run_batch(void) {
     double* dens = malloc(BATCHCNT * sizeof(double));
     printf("Host arrays allocated.\n");
 
+    /**********************************
+     *
+     * *******************************/
+
     printf("Copying initial conditions into xin...\n");
     for (int i = 0; i < BATCHCNT; i++) {
         memcpy(xin + (size * i), x, size * sizeof(double));
@@ -83,6 +87,11 @@ int run_batch(void) {
         dens[i] = 1e08;
     }
     printf("Initial conditions copied.\n");
+
+    /**********************************
+     *
+     * *******************************/
+
 
     int zones = BATCHCNT;
     //NEED to INITIALIZE DEVICE HERE
