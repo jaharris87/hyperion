@@ -33,18 +33,16 @@ extern "C" __global__ void hyperion_burner_dev_kernel(
     double* q_value, int* reactant_1, int* reactant_2, int* reactant_3,
     int* f_plus_map, int* f_minus_map, double* f_plus_factor,
     double* f_minus_factor, int* f_plus_max, int* f_minus_max,
-    int* num_react_species, double* real_vals, double* rate_g, double* flux_g) {
+    int* num_react_species, double* real_vals, double* rate_g){
 
     int zone = blockIdx.x;
     int tid = threadIdx.x;
 
     double* rate = rate_g + zone * NUM_REACTIONS;
-    double* flux = flux_g + zone * NUM_REACTIONS;
-
-    double tstep = real_vals[KSR_TSTEP];
 
     double T   = temp[zone];
     double rho = dens[zone];
+    double tstep = real_vals[0];
 
     // Per-zone offsets
     double* xout_zone = xout + zone * SIZE;
@@ -55,17 +53,13 @@ extern "C" __global__ void hyperion_burner_dev_kernel(
     // Shared memory
     // ------------------------------------------------------------
     extern __shared__ double smem[];
-    double* f_plus_sum  = smem;
-    double* f_minus_sum = f_plus_sum  + SIZE;
+
+    double* flux       = smem;                        // NUM_REACTIONS
+    double* reduce_buf = flux + NUM_REACTIONS;	      // blockDim.x
 
     __shared__ double norm_sum;
-    __shared__ double energy_sum;
-
-    __shared__ double reduce_buf[256]; 
-
-    __shared__ double t;
-    __shared__ double dt;
-
+    __shared__ double t, dt, t_end;
+    __shared__ int done;
 
     // ------------------------------------------------------------
     // Initial normalization: xout = xin / aa
@@ -73,6 +67,7 @@ extern "C" __global__ void hyperion_burner_dev_kernel(
     for (int i = tid; i < SIZE; i += blockDim.x)
         xout_zone[i] = xin_zone[i] / aa_zone[i];
 
+    __syncthreads();
     // ------------------------------------------------------------
     // Thermodynamic precompute
     // ------------------------------------------------------------
@@ -118,12 +113,22 @@ extern "C" __global__ void hyperion_burner_dev_kernel(
     if (tid == 0) {
         t  = 1e-20;
         dt = t * 1e-2;
+	t_end = tstep;
+	done = 0;
     }
     __syncthreads(); // Ensure every thread sees the initial t and dt
 
-    while (t < tstep) {
+    while (true) {
+    	__syncthreads();
 
-
+    	if (tid == 0){
+	    if (t >= t_end || !isfinite(t) || dt <= 0.0)
+                done = 1;
+	}
+	__syncthreads();
+	
+    	if (done) break;	
+    
         // --------------------------------------------------------
         // Flux computation
         // --------------------------------------------------------
@@ -162,15 +167,14 @@ extern "C" __global__ void hyperion_burner_dev_kernel(
                 xout_zone[i] += (plus - minus) * dt;
             }
         }
+
+        __syncthreads();
+
   	if (tid == 0) {
-            t += dt;              // ADVANCE time, do not reset it!
-        
-        dt = 1e-4 * t;        
-        
-        // 4. Boundary Condition (Safety check to not overshoot tstep)
-        if (t + dt > tstep) {
-            dt = tstep - t;
-        }
+            t += dt;        
+            dt = 1e-4 * t;
+	    if (t + dt > t_end)
+	         dt = max(t_end - t, 1e-30);        
 	}
 	__syncthreads();
     }
@@ -200,6 +204,7 @@ extern "C" __global__ void hyperion_burner_dev_kernel(
     for (int i = tid; i < SIZE; i += blockDim.x)
         xout_zone[i] = (xout_zone[i] * aa_zone[i] * norm_sum) / aa_zone[i];
 
+    __syncthreads();
 
 
     // ------------------------------------------------------------
@@ -220,5 +225,5 @@ extern "C" __global__ void hyperion_burner_dev_kernel(
     }
 
     if (tid == 0)
-        sdotrate[0] = reduce_buf[0] * tstep * 9.5768e17;
+        sdotrate[zone] = reduce_buf[0] * tstep * 9.5768e17;
 }
