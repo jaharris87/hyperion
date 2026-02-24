@@ -49,14 +49,11 @@ double* d_flux = nullptr;
 // -----------------------------------------------------------------------------
 void hyperion_burner_(double* tstep, double* temp, double* dens, double* xin,
                       double* HYP_RESTRICT xout, double* sdotrate,
-                      uchar* burned_zone, int* size) {
+                      uchar* burned_zone, int* zones) {
     fprintf(stderr, "HYPERION_BURNER entered\n");
     fflush(stderr);
 
-    for (int i = 0; i < *size; i++) {
-        hyperion_burner_kernel(tstep, &temp[i], &dens[i], xin + (SIZE * i),
-        xout + (SIZE * i), &sdotrate[i], *size);
-    }
+        hyperion_burner_kernel(tstep, &temp[i], &dens[i], xin + (SIZE * i), xout + (SIZE * i), &sdotrate[i], *zones);
 }
 
 // -----------------------------------------------------------------------------
