@@ -10,14 +10,36 @@ if (NOT DEFINED SIZE)
 	set(SIZE 16 CACHE STRING "Reaction network size")
 endif()
 
-if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE Debug)
+# ------------------------------------------------------------
+# Default build type
+# ------------------------------------------------------------
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    message(STATUS "No build type specified. Defaulting to RelWithDebInfo.")
+    set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Build type" FORCE)
 endif()
-# Pass debugging flags to the HIP compiler
-# -g: generates host debug symbols
-# -O0: disables optimization for both host and device
-# -ggdb: adds extra GDB-specific information
-set(CMAKE_HIP_FLAGS_DEBUG "-g -O0 -ggdb -fno-inline -fno-omit-frame-pointer ")
+
+# ------------------------------------------------------------
+# Debug flags
+# ------------------------------------------------------------
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+
+    message(STATUS "Debug build enabled")
+    # -g: generates host debug symbols
+    # -O0: disables optimization for both host and device
+    # -ggdb: adds extra GDB-specific information
+    set(CMAKE_HIP_FLAGS_DEBUG
+        "-g -O0 -ggdb -fno-inline -fno-omit-frame-pointer"
+    )
+
+else()
+
+    message(STATUS "Optimized build enabled")
+
+    set(CMAKE_HIP_FLAGS_RELEASE
+        "-O3 -fno-strict-aliasing"
+    )
+
+endif()
 
 add_compile_definitions(SIZE=${SIZE})
 

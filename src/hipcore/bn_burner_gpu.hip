@@ -26,6 +26,20 @@
 #define NUM_FLUXES_MINUS 7420
 #endif
 
+#include <math.h>
+
+#define GPU_ASSERT_FINITE(val, tag)                                    \
+    do {                                                               \
+        if (!isfinite(val)) {                                          \
+            printf("GPU ERROR: %s invalid\n", tag);                    \
+            printf("  zone=%d thread=%d block=%d\n",                   \
+                   blockIdx.x, threadIdx.x, blockIdx.x);               \
+            printf("  value=%e\n", (double)(val));                     \
+            __builtin_trap();                                          \
+        }                                                              \
+    } while (0)
+
+
 extern "C" __global__ void hyperion_burner_dev_kernel(
     double* temp, double* dens, double* xin, double* xout, double* sdotrate,
     double* prefactor, double* p_0, double* p_1,
@@ -104,6 +118,7 @@ extern "C" __global__ void hyperion_burner_dev_kernel(
               + p_4[r] * t4
               + p_5[r] * t5
               + p_6[r] * t6);
+	GPU_ASSERT_FINITE(rate[r], "rate");
     }
     __syncthreads();
 
@@ -139,6 +154,7 @@ extern "C" __global__ void hyperion_burner_dev_kernel(
 	    if (num_react_species[r] > 1) f *= xout_zone[reactant_2[r]];
 	    if (num_react_species[r] > 2) f *= xout_zone[reactant_3[r]];
             flux[r] = f;
+	    GPU_ASSERT_FINITE(flux[r], "flux");
         }
 
         __syncthreads();
@@ -167,8 +183,11 @@ extern "C" __global__ void hyperion_burner_dev_kernel(
 		// Forward Euler update.
                 xout_zone[i] += (plus - minus) * dt;
             }
+            // NEW: clamp
+            if (xout_zone[i] < ZERO_FIX)
+                xout_zone[i] = ZERO_FIX;
+	    GPU_ASSERT_FINITE(xout_zone[i], "xout");
         }
-
         __syncthreads();
 
   	if (tid == 0) {
@@ -188,6 +207,8 @@ extern "C" __global__ void hyperion_burner_dev_kernel(
         local += xout_zone[i] * aa_zone[i];
 
     reduce_buf[tid] = local;
+    GPU_ASSERT_FINITE(local, "reduction input");
+
     __syncthreads();
 
     // Tree reduction
