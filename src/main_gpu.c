@@ -82,7 +82,10 @@ int run_batch(void) {
 
     printf("Copying initial conditions into xin...\n");
     for (int i = 0; i < BATCHCNT; i++) {
-        memcpy(xin + (size * i), x, size * sizeof(double));
+	double* current_xin = xin + (size *i);
+        memset(current_xin, 0, size * sizeof(double));
+	current_xin[12] = 0.04166;
+	current_xin[20] = 0.03125;
         temp[i] = 5e09;
         dens[i] = 1e08;
     }

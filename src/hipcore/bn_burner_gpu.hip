@@ -28,17 +28,31 @@
 
 #include <math.h>
 
-#define GPU_ASSERT_FINITE(val, tag)                                    \
+#define GPU_ASSERT_FINITE(val, tag, species_idx, flux_idx)             \
     do {                                                               \
         if (!isfinite(val)) {                                          \
-            printf("GPU ERROR: %s invalid\n", tag);                    \
+	    printf("CRITICAL ERROR: %s is NaN at Species: %d, Flux_Map_Idx: %d\n", \
+               tag, species_idx, flux_idx); \
             printf("  zone=%d thread=%d block=%d\n",                   \
                    blockIdx.x, threadIdx.x, blockIdx.x);               \
             printf("  value=%e\n", (double)(val));                     \
-            __builtin_trap();                                          \
+            /* __builtin_trap(); <-- Comment this out to prevent hardware exception */ \
+            /* We print only the first failure to avoid "ridiculous prints" */ \
+	   return; \
         }                                                              \
     } while (0)
 
+#define GPU_DEBUG 1
+
+#if GPU_DEBUG
+#define GPU_GUARD(cond, msg, a, b, c) \
+    if (cond) { \
+        printf("GPU ERROR: %s | a=%d b=%d c=%d\n", msg, a, b, c); \
+        asm("s_trap 0"); \
+    }
+#else
+#define GPU_GUARD(cond, msg, a, b, c)
+#endif
 
 extern "C" __global__ void hyperion_burner_dev_kernel(
     double* temp, double* dens, double* xin, double* xout, double* sdotrate,
@@ -74,7 +88,7 @@ extern "C" __global__ void hyperion_burner_dev_kernel(
 
     __shared__ double norm_sum;
     __shared__ double t, dt, t_end;
-    __shared__ int done;
+    __shared__ int volatile done;
 
     // ------------------------------------------------------------
     // Initial normalization: xout = xin / aa
@@ -89,7 +103,7 @@ extern "C" __global__ void hyperion_burner_dev_kernel(
     double tmp = T * 1e-9;
     double t93 = pow(tmp, THIRD);
 
-    double t1 = 1.0 / (tmp + ZERO_FIX); //AC delete zero fix if no change
+    double t1 = 1.0 / (tmp);
     double t2 = 1.0 / t93;
     double t3 = t93;
     double t4 = tmp;
@@ -118,7 +132,7 @@ extern "C" __global__ void hyperion_burner_dev_kernel(
               + p_4[r] * t4
               + p_5[r] * t5
               + p_6[r] * t6);
-	GPU_ASSERT_FINITE(rate[r], "rate");
+	//GPU_ASSERT_FINITE(rate[r], "rate");
     }
     __syncthreads();
 
@@ -149,12 +163,37 @@ extern "C" __global__ void hyperion_burner_dev_kernel(
         // Flux computation
         // --------------------------------------------------------
         for (int r = tid; r < NUM_REACTIONS; r += blockDim.x) {
-            double f = rate[r];
-	    if (num_react_species[r] > 0) f *= xout_zone[reactant_1[r]];
-	    if (num_react_species[r] > 1) f *= xout_zone[reactant_2[r]];
-	    if (num_react_species[r] > 2) f *= xout_zone[reactant_3[r]];
+            double f_rate = rate[r];
+	    // Check if the rate itself is the problem (e.g., T-dependent math failure)
+	    if (!isfinite(f_rate)) {
+	        printf("ZONE %d: Reaction %d RATE is NaN\n", blockIdx.x, r);
+	    }
+	    double f = f_rate;
+	    if (num_react_species[r] > 0) {
+	        int idx1 = reactant_1[r];
+	        double abund1 = xout_zone[idx1];
+	        if (!isfinite(abund1)) printf("ZONE %d: Reactant 1 (Species %d) is NaN in Reaction %d\n", blockIdx.x, idx1, r);
+	        f *= abund1;
+	    }
+	   // if (num_react_species[r] > 0) f *= xout_zone[reactant_1[r]];
+            if (num_react_species[r] > 1) {
+                int idx2 = reactant_2[r];
+                double abund2 = xout_zone[idx2];
+                if (!isfinite(abund2)) printf("ZONE %d: Reactant 2 (Species %d) is NaN in Reaction %d\n", blockIdx.x, idx2, r);
+                f *= abund2;
+            }
+
+	   // if (num_react_species[r] > 1) f *= xout_zone[reactant_2[r]];
+            if (num_react_species[r] > 2) {
+                int idx3 = reactant_3[r];
+                double abund3 = xout_zone[idx3];
+                if (!isfinite(abund3)) printf("ZONE %d: Reactant 3 (Species %d) is NaN in Reaction %d\n", blockIdx.x, idx3, r);
+                f *= abund3;
+            }
+
+	   // if (num_react_species[r] > 2) f *= xout_zone[reactant_3[r]];
             flux[r] = f;
-	    GPU_ASSERT_FINITE(flux[r], "flux");
+	    GPU_ASSERT_FINITE(flux[r], "flux", r, f );
         }
 
         __syncthreads();
@@ -186,7 +225,7 @@ extern "C" __global__ void hyperion_burner_dev_kernel(
             // NEW: clamp
             if (xout_zone[i] < ZERO_FIX)
                 xout_zone[i] = ZERO_FIX;
-	    GPU_ASSERT_FINITE(xout_zone[i], "xout");
+	    GPU_ASSERT_FINITE(xout_zone[i], "xout", i, 0);
         }
         __syncthreads();
 
@@ -207,7 +246,7 @@ extern "C" __global__ void hyperion_burner_dev_kernel(
         local += xout_zone[i] * aa_zone[i];
 
     reduce_buf[tid] = local;
-    GPU_ASSERT_FINITE(local, "reduction input");
+    //GPU_ASSERT_FINITE(local, "reduction input");
 
     __syncthreads();
 
