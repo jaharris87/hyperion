@@ -40,10 +40,19 @@ extern "C" __global__ void hyperion_burner_dev_kernel(
     // No need to separate since we are only GPU. This does both transfer and
     // set.
     int n = threadIdx.x;
-    int i = n; // for loop on threads
-    // if (n > 0) {
-    // return;
-    // }
+
+    // Determine the correct inner loop based on available threads (assume 256)
+    // int inner_cut = (NUM_FLUXES_PLUS / 256) + (NUM_FLUXES_PLUS % 256 > 0);
+    int inner_cut = (NUM_FLUXES_PLUS / 256) + 1;
+    // int inner_cut = (NUM_FLUXES_PLUS / 256);
+    printf("Inner cut: %i\n", inner_cut);
+    int inner_idx = n * inner_cut; // for loop on threads
+    printf("Inner idx: %i\n", inner_idx);
+
+    __syncthreads();
+
+    int i =
+        n; // TODO: remove me! I'm to avoid compile errors like a lazy bastard!
 
     // for (int i = 0; i < SIZE; i++) {
     if (i < SIZE) {
@@ -63,12 +72,6 @@ extern "C" __global__ void hyperion_burner_dev_kernel(
 
     double density[3] = {1.0, dens[0], (dens[0]) * (dens[0])};
 
-    // double rate[NUM_REACTIONS];
-    // double flux[NUM_REACTIONS];
-    // double f_plus[NUM_FLUXES_PLUS];
-    // double f_minus[NUM_FLUXES_MINUS];
-    // double f_plus_sum[SIZE];
-    // double f_minus_sum[SIZE];
     __shared__ double rate[NUM_REACTIONS];
     __shared__ double flux[NUM_REACTIONS];
     __shared__ double f_plus[NUM_FLUXES_PLUS];
@@ -79,12 +82,18 @@ extern "C" __global__ void hyperion_burner_dev_kernel(
     __syncthreads();
 
     // for (int i = 0; i < NUM_REACTIONS; i++) {
-    if (i < NUM_REACTIONS) {
-        double prefactor_ = prefactor[i] * density[num_react_species[i] - 1];
-        rate[i] =
-            prefactor_ * exp(p_0[i] + t1 * p_1[i] + t2 * p_2[i] + t3 * p_3[i] +
-                             t4 * p_4[i] + t5 * p_5[i] + t6 * p_6[i]);
+
+    for (int i = inner_idx; i < inner_idx + inner_cut; i++) {
+        if (i < NUM_REACTIONS) {
+            double prefactor_ =
+                prefactor[i] * density[num_react_species[i] - 1];
+            rate[i] = prefactor_ *
+                      exp(p_0[i] + t1 * p_1[i] + t2 * p_2[i] + t3 * p_3[i] +
+                          t4 * p_4[i] + t5 * p_5[i] + t6 * p_6[i]);
+        }
     }
+
+    __syncthreads();
 
     double t = 1e-20;
     double dt = t * 1e-2;
@@ -94,31 +103,38 @@ extern "C" __global__ void hyperion_burner_dev_kernel(
     while (t < tstep) {
 
         // for (int i = 0; i < NUM_REACTIONS; i++) {
-        if (i < NUM_REACTIONS) {
-            switch (num_react_species[i]) {
-            case 1:
-                flux[i] = rate[i] * xout[reactant_1[i]];
-                break;
-            case 2:
-                flux[i] = rate[i] * xout[reactant_1[i]] * xout[reactant_2[i]];
-                break;
-            case 3:
-                flux[i] = rate[i] * xout[reactant_1[i]] * xout[reactant_2[i]] *
-                          xout[reactant_3[i]];
-                break;
+        for (int i = inner_idx; i < inner_idx + inner_cut; i++) {
+            if (i < NUM_REACTIONS) {
+                switch (num_react_species[i]) {
+                case 1:
+                    flux[i] = rate[i] * xout[reactant_1[i]];
+                    break;
+                case 2:
+                    flux[i] =
+                        rate[i] * xout[reactant_1[i]] * xout[reactant_2[i]];
+                    break;
+                case 3:
+                    flux[i] = rate[i] * xout[reactant_1[i]] *
+                              xout[reactant_2[i]] * xout[reactant_3[i]];
+                    break;
+                }
             }
         }
 
         __syncthreads();
 
         // for (int i = 0; i < NUM_FLUXES_PLUS; i++) {
-        if (i < NUM_FLUXES_PLUS) {
-            f_plus[i] = f_plus_factor[i] * flux[f_plus_map[i]];
+        for (int i = inner_idx; i < inner_idx + inner_cut; i++) {
+            if (i < NUM_FLUXES_PLUS) {
+                f_plus[i] = f_plus_factor[i] * flux[f_plus_map[i]];
+            }
         }
 
         // for (int i = 0; i < NUM_FLUXES_MINUS; i++) {
-        if (i < NUM_FLUXES_MINUS) {
-            f_minus[i] = f_minus_factor[i] * flux[f_minus_map[i]];
+        for (int i = inner_idx; i < inner_idx + inner_cut; i++) {
+            if (i < NUM_FLUXES_MINUS) {
+                f_minus[i] = f_minus_factor[i] * flux[f_minus_map[i]];
+            }
         }
 
         __syncthreads();
@@ -159,32 +175,41 @@ extern "C" __global__ void hyperion_burner_dev_kernel(
             }
         }
 
-        // TODO: no renorm or ddt_e calc since they are unpleasant to parallelize. We will think about the best way to remedy that issue later.
+        // TODO: no renorm or ddt_e calc since they are unpleasant to
+        // parallelize. We will think about the best way to remedy that issue
+        // later.
 
-        // double normalfac = 0;
-        // // for (int i = 0; i < SIZE; i++) {
-        // if (i < SIZE) {
-        //     xout[i] = xout[i] * aa[i];
-        //     normalfac += xout[i];
+        double normalfac = 0;
+        // for (int i = 0; i < SIZE; i++) {
+        if (i < SIZE) {
+            xout[i] = xout[i] * aa[i];
+        }
         // }
-        //
-        // normalfac = 1 / normalfac;
-        // // for (int i = 0; i < SIZE; i++) {
-        // if (i < SIZE) {
-        //     xout[i] = xout[i] * normalfac;
-        //     xout[i] = xout[i] / aa[i];
-        // }
+        __syncthreads();
 
-        // tmp = 0;
-        // // for (int i = 0; i < NUM_REACTIONS; i++) {
-        // if (i < NUM_REACTIONS) {
-        //     tmp += flux[i] * q_value[i];
+        // TODO: actually braindead
+        for (int j = 0; j < SIZE; j++) {
+            normalfac += xout[j];
+        }
+
+        normalfac = 1 / normalfac;
+        // for (int i = 0; i < SIZE; i++) {
+        if (i < SIZE) {
+            xout[i] = xout[i] * normalfac;
+            xout[i] = xout[i] / aa[i];
+        }
+
+        // if (i == 0) {
+        //     tmp = 0;
+        //     for (int j = 0; j < NUM_REACTIONS; j++) {
+        //         tmp += flux[j] * q_value[j];
+        //     }
+        //     tmp *= dt;
+        //     ddt_e += tmp * 9.5768e17; // Convert MeV/nucleon/s to erg/g/s
         // }
-        // tmp *= dt;
-        // ddt_e += tmp * 9.5768e17; // Convert MeV/nucleon/s to erg/g/s
 
         t += dt;
-        dt = 1e-4 * t;
+        dt = 1e-2 * t;
 
         __syncthreads();
     }
@@ -194,7 +219,9 @@ extern "C" __global__ void hyperion_burner_dev_kernel(
         xout[i] = xout[i] * aa[i];
     }
 
-    sdotrate[0] = ddt_e;
+    // if (i == 0) {
+    //     sdotrate[0] = ddt_e;
+    // }
 
     return;
 }

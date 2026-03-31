@@ -6,9 +6,9 @@
 #include <hip/hip_runtime.h>
 
 // So that my LSP stops bugging me.
-#ifndef SIZE
-#define SIZE 16
-#endif
+// #ifndef SIZE
+// #define SIZE 16
+// #endif
 
 #if SIZE == 16
 #define SIZE 16
@@ -189,6 +189,11 @@ static void hyperion_burner_kernel(double* tstep, double* temp, double* dens,
     for (int i = 0; i < 100; i++) {
         trueargs[i] = &args[i];
     }
+
+    // TODO: why doesn't this matter for execution, only calling... wtf?
+    sharedmem_allocation = 0;
+    
+    // printf("%i\n", sharedmem_allocation);
 
     error = hipLaunchKernel(hyperion_burner_dev_kernel, griddim, blockdim,
                             trueargs, sharedmem_allocation, hipStreamDefault);

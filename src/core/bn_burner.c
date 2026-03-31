@@ -28,8 +28,10 @@
 #if SIZE == 150
 #define SIZE 150
 #define NUM_REACTIONS 1604
-#define NUM_FLUXES_PLUS 2710
-#define NUM_FLUXES_MINUS 2704
+// #define NUM_FLUXES_PLUS 2710
+// #define NUM_FLUXES_MINUS 2704
+#define NUM_FLUXES_PLUS 2310
+#define NUM_FLUXES_MINUS 2304
 #endif
 
 #if SIZE == 365
@@ -95,6 +97,7 @@ static void hyperion_burner_kernel(double* tstep, double* temp, double* dens,
                              t4 * p_4[i] + t5 * p_5[i] + t6 * p_6[i]);
     }
 
+
     __DIAG_HALT("rates", "rate", rate, num_reactions);
 
     double t = 1e-20;
@@ -118,6 +121,7 @@ static void hyperion_burner_kernel(double* tstep, double* temp, double* dens,
                 break;
             }
         }
+        
         __DIAG_HALT("fluxes", "flux", flux, num_reactions);
 
         for (int i = 0; i < f_plus_total; i++) {
@@ -150,6 +154,7 @@ static void hyperion_burner_kernel(double* tstep, double* temp, double* dens,
                 f_minus_sum[i] += f_minus[j];
             }
         }
+        
         __DIAG_HALT("F+ sum", "f_plus_sum", f_plus_sum, num_species);
         __DIAG_HALT("F- sum", "f_minus_sum", f_minus_sum, num_species);
 
@@ -192,7 +197,7 @@ static void hyperion_burner_kernel(double* tstep, double* temp, double* dens,
         ddt_e += tmp * 9.5768e17; // Convert MeV/nucleon/s to erg/g/s
 
         t += dt;
-        dt = 1e-4 * t;
+        dt = 1e-2 * t;
     }
 
     for (int i = 0; i < SIZE; i++) {

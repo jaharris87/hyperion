@@ -13,7 +13,7 @@
 
 #include <x86intrin.h>
 
-#define BATCHCNT 8 // Number of zones to compute
+#define BATCHCNT 1 // Number of zones to compute
 
 int run_batch(void);
 
@@ -68,8 +68,8 @@ int run_batch(void) {
     device_init(zones);
 
     // WARMUP
-    hyperion_burner_(&tstep, temp, dens, xin, xout, sdotrate, burned_zone,
-                     &zones);
+    // hyperion_burner_(&tstep, temp, dens, xin, xout, sdotrate, burned_zone,
+                     // &zones);
 
     unsigned long long cycles = __rdtsc();
 
