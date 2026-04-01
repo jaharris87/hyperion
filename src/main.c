@@ -28,11 +28,13 @@
 // #define WARMUP 0
 // #define AFRN 1
 
-#define BATCHCNT 32 // Number of zones to compute
+#define BATCHCNT 8 // Match the current GPU driver setup
 
 int run_batch(void);
 static unsigned long long hyperion_tick_count(void);
 static int configure_data_dir(void);
+static void setup_like_gpu_problem(double* xin, double* temp, double* dens,
+                                   int size);
 
 int main() {
     if (configure_data_dir() == EXIT_FAILURE) {
@@ -63,19 +65,22 @@ int run_batch(void) {
 
     double* temp = malloc(BATCHCNT * sizeof(double));
     double* dens = malloc(BATCHCNT * sizeof(double));
+    memset(sdotrate, 0, BATCHCNT * sizeof(double));
 
+    printf("Initializing Hyperion...\n");
     hyperion_init_();
+    printf("Hyperion initialized.\n");
 
-    for (int i = 0; i < BATCHCNT; i++) {
-        memcpy(xin + (size * i), x, size * sizeof(double));
-        temp[i] = 5e09;
-        dens[i] = 1e08;
-    }
+    printf("Allocating and initializing CPU problem...\n");
+    setup_like_gpu_problem(xin, temp, dens, size);
+    printf("CPU problem initialized.\n");
 
     int zones = BATCHCNT;
     burned_zone = malloc(zones * sizeof(uchar));
+    memset(burned_zone, 0, zones * sizeof(uchar));
 
     // WARMUP
+    printf("Launching CPU burner (warmup)...\n");
     hyperion_burner_(&tstep, temp, dens, xin, xout, sdotrate, burned_zone,
                      &zones);
 
@@ -92,25 +97,15 @@ int run_batch(void) {
     unsigned long long cycles_ = hyperion_tick_count();
 
     printf("Result:\n");
-
-#ifdef __HYPERION_USE_SIMD
-    // Add size just to check that it's working (serial cannot do this..)
-    // Yes, this is all a little funky, but it works fine if you know what's
-    // going on.
-    // for (int i = 0; i < size; i++) {
-    //     printf("%2i %.5e\n", i, xout[i]);
-    // }
-#else
-    // for (int i = 0; i < size; i++) {
-    //     printf("%4i %.5e\n", i, xout[i]);
-    // }
-#endif
+    for (int i = 0; i < size; i++) {
+        printf("%4i %.5e\n", i, xout[i]);
+    }
     printf("\n");
 
-    // printf("Sdotrate for the batch.\n");
-    // for (int i = 0; i < BATCHCNT; i++) {
-    //     printf("sdot[%i]: %.5e\n", i, sdotrate[i]);
-    // }
+    printf("Sdotrate for the batch.\n");
+    for (int i = 0; i < BATCHCNT; i++) {
+        printf("sdot[%i]: %.5e\n", i, sdotrate[i]);
+    }
 
     printf("Total cycles per run of batch (avg, rnded): %lld \n",
            (cycles_ - cycles) / BATCHCNT);
@@ -153,4 +148,25 @@ static unsigned long long hyperion_tick_count(void) {
     return ((unsigned long long)ts.tv_sec * 1000000000ull) +
            (unsigned long long)ts.tv_nsec;
 #endif
+}
+
+static void setup_like_gpu_problem(double* xin, double* temp, double* dens,
+                                   int size) {
+    for (int i = 0; i < BATCHCNT; i++) {
+        double* current_xin = xin + (size * i);
+
+        memset(current_xin, 0, size * sizeof(double));
+
+        // Mirror the current GPU driver setup so CPU and GPU runs start from
+        // the same hard-coded problem definition.
+        if (size > 20) {
+            current_xin[12] = 0.04166;
+            current_xin[20] = 0.03125;
+        } else {
+            memcpy(current_xin, x, size * sizeof(double));
+        }
+
+        temp[i] = 5e09;
+        dens[i] = 1e08;
+    }
 }
