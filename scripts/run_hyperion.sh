@@ -55,9 +55,8 @@ echo "Job started at: $(date)"
 # =========================
 # Run
 # =========================
-cp $BASE/build-frontier-hip/src/hyperion_test .
+cp $BASE/build-frontier-hip/src/hyperion .
 export HYPERION_DATA_DIR=$BASE
-srun ./hyperion_test
+srun ./hyperion
 
 echo "Job finished at: $(date)"
-
