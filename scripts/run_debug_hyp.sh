@@ -56,7 +56,7 @@ echo "Job started at: $(date)"
 # =========================
 cp $BASE/build-frontier-hip/src/hyperion .
 export HYPERION_DATA_DIR=/ccs/proj/ast218/AC/hyperion
-srun ./hyperion
+srun rocgdb --batch -x $BASE/scripts/cmds2.gdb --args ./hyperion
 
 echo "Job finished at: $(date)"
 

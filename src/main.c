@@ -2,7 +2,6 @@
 #include "core/init.h"
 #include "core/kill.h"
 #include "core/store.h"
-#include "gpu/hip.h"
 
 #include <math.h>
 #include <stdint.h>
@@ -52,9 +51,9 @@ int run_batch(void) {
     double* _scope_xin = malloc((size * BATCHCNT) * sizeof(double) + 0x40);
     double* _scope_xout = malloc((size * BATCHCNT) * sizeof(double) + 0x40);
     double* _scope_sdotrate = malloc(BATCHCNT * sizeof(double) + 0x40);
-    double* xin = (double*)(((uintptr_t)_scope_xin) + 0x3F & ~0x3F);
-    double* xout = (double*)(((uintptr_t)_scope_xout) + 0x3F & ~0x3F);
-    double* sdotrate = (double*)(((uintptr_t)_scope_sdotrate) + 0x3F & ~0x3F);
+    double* xin      = (double*)((((uintptr_t)_scope_xin      + 0x3F) & ~0x3F));
+    double* xout     = (double*)((((uintptr_t)_scope_xout     + 0x3F) & ~0x3F));
+    double* sdotrate = (double*)((((uintptr_t)_scope_sdotrate + 0x3F) & ~0x3F));
 
     double* temp = malloc(BATCHCNT * sizeof(double));
     double* dens = malloc(BATCHCNT * sizeof(double));
@@ -68,6 +67,7 @@ int run_batch(void) {
     }
 
     int zones = BATCHCNT;
+    burned_zone = malloc(zones * sizeof(uchar));
 
     // WARMUP
     hyperion_burner_(&tstep, temp, dens, xin, xout, sdotrate, burned_zone,

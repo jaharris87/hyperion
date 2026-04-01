@@ -49,20 +49,18 @@ double* d_flux = nullptr;
 // -----------------------------------------------------------------------------
 void hyperion_burner_(double* tstep, double* temp, double* dens, double* xin,
                       double* HYP_RESTRICT xout, double* sdotrate,
-                      uchar* burned_zone, int* size) {
+                      uchar* burned_zone, int* zones) {
     fprintf(stderr, "HYPERION_BURNER entered\n");
     fflush(stderr);
 
-    for (int i = 0; i < *size; i++) {
-        hyperion_burner_kernel(tstep, &temp[i], &dens[i], xin + (SIZE * i),
-        xout + (SIZE * i), &sdotrate[i], *size);
-    }
+        hyperion_burner_kernel(tstep, temp, dens, xin, xout, sdotrate, *zones);
 }
 
 // -----------------------------------------------------------------------------
 // Allocate and initialize device memory for a batch of zones
 // -----------------------------------------------------------------------------
 int device_init(int zones) {
+    hipError_t e;
     fprintf(stderr, "DEVICE_INIT entered (zones=%d)\n", zones);
     fflush(stderr);
 
@@ -97,21 +95,19 @@ int device_init(int zones) {
     HIP_ALLOC_COPY(args.f_minus_max, f_minus_max, num_species);
     HIP_ALLOC_COPY(args.num_react_species, num_react_species, num_reactions);
 
-    // Allocate per-zone arrays
-    error += hipMalloc(&args.burned_zone, 8);
-    error += hipMalloc(&args.temp, zones * sizeof(double));
-    error += hipMalloc(&args.dens, zones * sizeof(double));
-    error += hipMalloc(&args.xin, zones * num_species * sizeof(double));
-    error += hipMalloc(&args.xout, zones * num_species * sizeof(double));
-    error += hipMalloc(&args.sdotrate, zones * sizeof(double));
-    error += hipMalloc(&args.int_vals, zones * sizeof(int));
-    error += hipMalloc(&args.real_vals, zones * sizeof(double));
+    // Per-zone allocations
+    e = hipMalloc(&args.burned_zone, zones * sizeof(uchar)); if(e != hipSuccess) return EXIT_FAILURE;
+    e = hipMalloc(&args.temp, zones * sizeof(double)); if(e != hipSuccess) return EXIT_FAILURE;
+    e = hipMalloc(&args.dens, zones * sizeof(double)); if(e != hipSuccess) return EXIT_FAILURE;
+    e = hipMalloc(&args.xin, zones * num_species * sizeof(double)); if(e != hipSuccess) return EXIT_FAILURE;
+    e = hipMalloc(&args.xout, zones * num_species * sizeof(double)); if(e != hipSuccess) return EXIT_FAILURE;
+    e = hipMalloc(&args.sdotrate, zones * sizeof(double)); if(e != hipSuccess) return EXIT_FAILURE;
+    e = hipMalloc(&args.int_vals, zones * sizeof(int)); if(e != hipSuccess) return EXIT_FAILURE;
+    e = hipMalloc(&args.real_vals, zones * sizeof(double)); if(e != hipSuccess) return EXIT_FAILURE;
 
-    hipMalloc(&d_rate, zones * NUM_REACTIONS * sizeof(double));
-    hipMalloc(&d_flux, zones * NUM_REACTIONS * sizeof(double));
-
-    hipMemset(d_rate, 0, zones * NUM_REACTIONS * sizeof(double));
-    hipMemset(d_flux, 0, zones * NUM_REACTIONS * sizeof(double));
+    // Rate buffer
+    e = hipMalloc(&d_rate, zones * NUM_REACTIONS * sizeof(double)); if(e != hipSuccess) return EXIT_FAILURE;
+    e = hipMemset(d_rate, 0, zones * NUM_REACTIONS * sizeof(double)); if(e != hipSuccess) return EXIT_FAILURE;
 
     #undef HIP_ALLOC_COPY
 
@@ -153,18 +149,22 @@ static void hyperion_burner_kernel(double* tstep, double* temp, double* dens,
     dim3 blockdim(256, 1, 1);
     dim3 griddim(zones, 1, 1);
     size_t sharedmem_allocation =
-        sizeof(double) * (num_reactions + num_reactions + f_plus_total + f_minus_total + num_species + num_species);
+	sizeof(double) * (NUM_REACTIONS + blockdim.x); 
 
     printf("[bn_burner_gpu] Launching kernel...\n");
     hyperion_burner_dev_kernel<<<griddim, blockdim, sharedmem_allocation>>>(
-        args.temp, args.dens, args.xin, args.xout, args.sdotrate,
-        args.prefactor, args.p_0, args.p_1, args.p_2, args.p_3,
-        args.p_4, args.p_5, args.p_6, args.aa, args.q_value,
-        args.reactant_1, args.reactant_2, args.reactant_3,
-        args.f_plus_map, args.f_minus_map, args.f_plus_factor,
-        args.f_minus_factor, args.f_plus_max, args.f_minus_max,
-        args.num_react_species, args.real_vals, d_rate, d_flux
+	args.temp, args.dens, args.xin, args.xout, args.sdotrate,
+	args.prefactor, args.p_0, args.p_1, args.p_2, args.p_3,
+	args.p_4, args.p_5, args.p_6, args.aa, args.q_value,
+	args.reactant_1, args.reactant_2, args.reactant_3,
+	args.f_plus_map, args.f_minus_map, args.f_plus_factor,
+	args.f_minus_factor, args.f_plus_max, args.f_minus_max,
+	args.num_react_species, args.real_vals, d_rate
     );
+
+    hipError_t err = hipDeviceSynchronize();
+    if (err != hipSuccess)
+        printf("HIP error: %s\n", hipGetErrorString(err));
 
     // Copy results back to host
     hipMemcpy(xout, args.xout, zones * num_species * sizeof(double), hipMemcpyDeviceToHost);
@@ -207,6 +207,7 @@ void hip_killall_device_ptrs() {
     HIP_FREE(args.num_react_species)
     HIP_FREE(args.int_vals)
     HIP_FREE(args.real_vals)
+    HIP_FREE(d_rate)
 
     #undef HIP_FREE
 
