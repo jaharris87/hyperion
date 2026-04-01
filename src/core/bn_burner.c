@@ -187,12 +187,12 @@ static void hyperion_burner_kernel(double* tstep, double* temp, double* dens,
         normalfac += xout[i] * aa[i];
     }
 
-    // Match the current GPU kernel: renormalize once at the end and leave
-    // xout in abundance space so the CPU printout can be compared directly.
+    // Match the current GPU kernel's end-only renormalization, but return mass
+    // fractions here because CPU callers and tests expect xout in X-space.
     double norm_sum = 1 / normalfac;
     __DIAG_HALT("Normalization", "normalfac", &norm_sum, 1);
     for (int i = 0; i < SIZE; i++) {
-        xout[i] = (xout[i] * aa[i] * norm_sum) / aa[i];
+        xout[i] = xout[i] * aa[i] * norm_sum;
     }
 
     // Match the current GPU kernel's final-flux energy calculation.
