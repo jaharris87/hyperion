@@ -96,9 +96,11 @@ int run_batch(void) {
 
     unsigned long long cycles_ = hyperion_tick_count();
 
+    // Print abundance Y here so the standalone CPU log matches the current
+    // GPU driver's Result block without changing the CPU burner's X-space API.
     printf("Result:\n");
     for (int i = 0; i < size; i++) {
-        printf("%4i %.5e\n", i, xout[i]);
+        printf("%4i %.5e\n", i, xout[i] / aa[i]);
     }
     printf("\n");
 
