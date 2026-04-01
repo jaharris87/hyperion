@@ -64,7 +64,7 @@ void hyperion_burner_(double* tstep, double* temp, double* dens, double* xin,
 static void hyperion_burner_kernel(double* tstep, double* temp, double* dens,
                                    double* xin, double* restrict xout,
                                    double* sdotrate) {
-
+    double final_flux_energy = 0;
 
     // We use the  XOUT memory, but our computation is with abundance (y)
     // Yes, this is confusing.
@@ -76,8 +76,6 @@ static void hyperion_burner_kernel(double* tstep, double* temp, double* dens,
     __DIAG_HALT("xin->xout", "xout", xout, SIZE);
 
     double tmp = *temp / 1e9;
-    double ddt_e = 0;
-
     double t93 = pow(tmp, THIRD);
     double t1 = 1 / tmp;
     double t2 = 1 / t93;
@@ -169,37 +167,39 @@ static void hyperion_burner_kernel(double* tstep, double* temp, double* dens,
         }
         __DIAG_HALT("Y step", "xout", xout, SIZE);
 
-        // TODO: this continuous renormalization seems necessary, but it's
-        // really not great for performance...
-        double normalfac = 0;
         for (int i = 0; i < num_species; i++) {
-            xout[i] = xout[i] * aa[i];
-            normalfac += xout[i];
+            if (xout[i] < ZERO_FIX) {
+                xout[i] = ZERO_FIX;
+            }
         }
 
-        normalfac = 1 / normalfac;
-        __DIAG_HALT("Normalization", "normalfac", &normalfac, 1);
-        for (int i = 0; i < num_species; i++) {
-            xout[i] = xout[i] * normalfac;
-            xout[i] = xout[i] / aa[i];
-        }
-
-        tmp = 0;
+        final_flux_energy = 0;
         for (int i = 0; i < num_reactions; i++) {
-            tmp += flux[i] * q_value[i];
+            final_flux_energy += flux[i] * q_value[i];
         }
-        tmp *= dt;
-        ddt_e += tmp * 9.5768e17; // Convert MeV/nucleon/s to erg/g/s
 
         t += dt;
         dt = 1e-4 * t;
+        if (t + dt > *tstep) {
+            dt = fmax(*tstep - t, 1e-30);
+        }
     }
 
+    double normalfac = 0;
     for (int i = 0; i < SIZE; i++) {
-        xout[i] = xout[i] * aa[i];
+        normalfac += xout[i] * aa[i];
     }
 
-    *sdotrate = ddt_e;
+    // Match the current GPU kernel: renormalize once at the end and leave
+    // xout in abundance space so the CPU printout can be compared directly.
+    normalfac = 1 / normalfac;
+    __DIAG_HALT("Normalization", "normalfac", &normalfac, 1);
+    for (int i = 0; i < SIZE; i++) {
+        xout[i] = xout[i] * normalfac;
+    }
+
+    // Match the current GPU kernel's final-flux energy calculation.
+    *sdotrate = final_flux_energy * (*tstep) * 9.5768e17;
 
     return;
 }
